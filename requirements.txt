@@ -1,5 +1,0 @@
-pandas
-nltk
-scikit-learn
-torch
-torch-geometric
