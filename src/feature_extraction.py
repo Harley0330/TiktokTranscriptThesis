@@ -1,0 +1,33 @@
+"""
+--------
+Convert preprocessed text tokens into numerical features:
+- TF-IDF Vectors
+- Word occurrence graph
+
+"""
+
+from sklearn.feature_extraction.text import TfidfVectorizer
+import networkx as nx
+
+def build_tfidf(corpus, max_features = 5000): # Builds a TF-IDF representation of the corpus
+    
+    vectorizer = TfidfVectorizer(max_features=max_features)
+    X = vectorizer.fit_transform(corpus)
+    return X, vectorizer
+
+def build_word_occurrence_graph(tokens_list, window_size=2): # Builds a word occurence graph from tokenized transcripts
+
+    G = nx.Graph()
+
+    for tokens in tokens_list:
+        for i in range(len(tokens) - window_size + 1):
+            window = tokens[i:i + window_size]
+            for w1 in window:
+                for w2 in window:
+                    if w1 != w2:
+                        if G.has_edge(w1, w2):
+                            G[w1][w2]["weight"] += 1
+                        else:
+                            G.add_edge(w1,w2, weight=1)
+    return G
+    

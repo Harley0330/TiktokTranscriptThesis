@@ -1,0 +1,25 @@
+FakeNewsClassifier-GNN-RF/
+│
+├── data/
+│   ├── raw/                  # Original dataset (FakeTT transcripts)
+│   ├── processed/            # Preprocessed & tokenized data
+│
+├── src/
+│   ├── __init__.py
+│   ├── preprocessing.py      # Text cleaning, tokenization, stopword removal
+│   ├── feature_extraction.py # TF-IDF, word occurrence graph
+│   ├── gnn_model.py          # Graph Neural Network (SAGEConv, forward pass)
+│   ├── random_forest.py      # Random Forest classifier
+│   ├── train.py              # Pipeline to train GNN + RF
+│   ├── evaluate.py           # Precision, recall, accuracy, F1
+│   ├── utils.py              # Configs, helpers, logging, saving models
+│
+├── notebooks/
+│   ├── EDA.ipynb             # Exploratory data analysis on FakeTT
+│   ├── preprocessing_demo.ipynb # Test text cleaning & tokenization
+│   ├── model_experiments.ipynb  # Try different GNN/RF setups
+│
+├── requirements.txt          # Dependencies (torch, torch-geometric, sklearn, nltk, etc.)
+├── config.yaml               # Hyperparameters (layers, batch size, RF params, etc.)
+├── main.py                   # Entry point: end-to-end pipeline
+└── README.md                 # Documentation
