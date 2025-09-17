@@ -11,7 +11,7 @@ import networkx as nx
 
 def build_tfidf(corpus, max_features = 5000): # Builds a TF-IDF representation of the corpus
     
-    vectorizer = TfidfVectorizer(max_features=max_features)
+    vectorizer = TfidfVectorizer(max_features=max_features, min_df=5, max_df=0.9, ngram_range=(1,2))
     X = vectorizer.fit_transform(corpus)
     return X, vectorizer
 

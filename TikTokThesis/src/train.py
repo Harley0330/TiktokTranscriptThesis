@@ -32,33 +32,28 @@ def prepare_data(csv_path, max_features=5000):
 
     return X, y, vectorizer
 
-def stratified_kfold_split(X, y, n_splits = 5):
-    """
-    Splits dataset by using stratified K-Fold splitting
-    Prints fold sizes and label balances
-    """
+# def stratified_kfold_split(X, y, n_splits = 5):
+#     """
+#     Splits dataset by using stratified K-Fold splitting
+#     Prints fold sizes and label balances
+#     """
 
-    kf = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=42)
+#     kf = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=42)
 
-    fold = 1
-    for train_index, test_index in kf.split(X,y):
-        print(f"\n Fold{fold}")
-        print("Train size: ", len(train_index), " Test size: ", len(test_index))
-        print("Fake ratio in train: ", np.mean(y[train_index]))
-        print("Fake ratio in test: ", np.mean(y[test_index]))
+#     fold = 1
+#     for train_index, test_index in kf.split(X,y):
+#         print(f"\n Fold{fold}")
+#         print("Train size: ", len(train_index), " Test size: ", len(test_index))
+#         print("Fake ratio in train: ", np.mean(y[train_index]))
+#         print("Fake ratio in test: ", np.mean(y[test_index]))
 
-        # Extract train test splits
-        X_train, X_test = X[train_index], X[test_index]
-        y_train, y_test = y[train_index], y[test_index]
+#         # Extract train test splits
+#         X_train, X_test = X[train_index], X[test_index]
+#         y_train, y_test = y[train_index], y[test_index]
 
-        fold += 1
+#         fold += 1
 
-if __name__ == "__main__":
-    # Path to your dataset
-    dataset_path = "../data/data_cleaned.csv"
-
-    # Prepare data
-    X, y, vectorizer = prepare_data(dataset_path)
-
-    # Run stratified K-Fold splitting
-    stratified_kfold_split(X, y, n_splits=5)
+def get_folds(X,y, n_splits=5, random_state=42):
+    kf = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=random_state)
+    for train_idx, test_idx, in kf.split(X,y):
+        yield train_idx, test_idx
