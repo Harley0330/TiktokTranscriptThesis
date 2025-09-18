@@ -7,7 +7,7 @@ from sklearn.model_selection import StratifiedKFold
 from feature_extraction import build_tfidf
 from preprocessing import preprocess_dataset
 
-def prepare_data(csv_path, max_features=5000):
+def prepare_data(csv_path, max_features=7500):
     """
     Load dataset, preprocess transcript, and generate TF-IDF features
     Return feature matrix(X), labels (y), and vectorizer

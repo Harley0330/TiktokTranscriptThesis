@@ -1,58 +1,98 @@
 """
-Handles Random Forest training and Evaluation with Stratified K-Fold CV
-Baseline model: TF-IDF features only.
+Random Forest with RandomizedSearchCV
+Baseline: TF-IDF features from prepare_data()
 """
+
 import numpy as np
+import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import accuracy_score, precision_recall_fscore_support
-from train import prepare_data, get_folds
+from sklearn.metrics import accuracy_score, precision_recall_fscore_support, roc_auc_score, confusion_matrix
+from sklearn.model_selection import train_test_split, StratifiedKFold, RandomizedSearchCV
+from train import prepare_data  
 
-def run_rf_baseline_cv(csv_path, n_splits=5, random_state=42):
+def run_rf_randomsearch(csv_path, random_state=42):
     """
-    Train and evals Random Forest using Stratified K-Fold CV
+    Train Random Forest with hyperparameter tuning using RandomizedSearchCV
     """
-    X,y, vectorizer = prepare_data(csv_path)
-    accs, precs, recs, f1s = [], [], [], []
-    fold = 1
+    # Load features and labels
+    X, y, vectorizer = prepare_data(csv_path)
 
-    for train_idx, test_idx, in get_folds(X,y,n_splits=n_splits, random_state=random_state):
-        X_train, X_test = X[train_idx], X[test_idx]
-        y_train, y_test = y[train_idx], y[test_idx]
+    # Train/test split (keep 20% for final eval)
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, stratify=y, random_state=random_state
+    )
 
-        #Initialize Random Forest
+    # Parameter distributions for RandomizedSearchCV
+    # param_dist = {
+    #     "n_estimators": [100, 200, 400, 600],
+    #     "max_depth": [None, 10, 20, 30, 50],
+    #     "max_features": ["sqrt", "log2", None],
+    #     "min_samples_split": [2, 5, 10],
+    #     "min_samples_leaf": [1, 2, 4],
+    #     "bootstrap": [True, False],
+    # }
 
-        rf = RandomForestClassifier(
-            n_estimators=400,
-            max_features="sqrt",
-            class_weight="balanced",
-            n_jobs=1,
-            random_state=random_state
-        )
-        rf.fit(X_train,y_train)
-        y_pred = rf.predict(X_test)
+    rf = RandomForestClassifier(
+        n_estimators=200,
+        min_samples_split=5,
+        min_samples_leaf=1,
+        max_features="log2",
+        max_depth=None,
+        class_weight="balanced",
+        random_state=random_state,
+        n_jobs=-1,
+        bootstrap=False
+    )
 
-        #Metrics
-        acc = accuracy_score(y_test, y_pred)
-        prec, rec, f1, _ = precision_recall_fscore_support(
-            y_test, y_pred, average="binary", pos_label=1, zero_division=0
-        )
+    # StratifiedKFold CV
+    cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=random_state)
 
-        print(f"Fold {fold}")
-        print(f"Accuracy : {acc:.4f}")
-        print(f"Precision :{prec:.4f} Recall {rec:.4f} F1: {f1:.4f}")
+    # rf_random = RandomizedSearchCV(
+    #     estimator=rf,
+    #     param_distributions=param_dist,
+    #     n_iter=30,                 # number of random combos
+    #     cv=cv,
+    #     scoring="f1",              # optimize F1 (can change to "accuracy")
+    #     verbose=2,
+    #     random_state=random_state,
+    #     n_jobs=-1
+    # )
 
-        accs.append(acc)
-        precs.append(prec)
-        recs.append(rec)
-        f1s.append(f1)
-        fold += 1
-    
-    print("Mean Performance over Folds")
-    print(f"Accuracy : {np.mean(accs):.4f} ± {np.std(accs):.4f}")
-    print(f"Precision: {np.mean(precs):.4f} ± {np.std(precs):.4f}")
-    print(f"Recall   : {np.mean(recs):.4f} ± {np.std(recs):.4f}")
-    print(f"F1-score : {np.mean(f1s):.4f} ± {np.std(f1s):.4f}")
+    # # Fit RandomizedSearchCV
+    # rf_random.fit(X_train, y_train)
+
+    # # Best parameters & CV score
+    # print("\nBest Params:", rf_random.best_params_)
+    # print("Best CV F1 Score:", rf_random.best_score_)
+
+    # Evaluate best model on test set
+    # best_model = rf_random.best_estimator_
+    rf.fit(X_train,y_train)
+    y_pred = rf.predict(X_test)
+    y_proba = rf.predict_proba(X_test)[:, 1]
+
+    acc = accuracy_score(y_test, y_pred)
+    prec, rec, f1, _ = precision_recall_fscore_support(
+        y_test, y_pred, average="binary", pos_label=1, zero_division=0
+    )
+    auc = roc_auc_score(y_test, y_proba)
+    cm = confusion_matrix(y_test, y_pred)
+
+    print("\nTest Set Performance:")
+    print(f"Accuracy : {acc:.4f}")
+    print(f"Precision: {prec:.4f}")
+    print(f"Recall   : {rec:.4f}")
+    print(f"F1-score : {f1:.4f}")
+    print(f"ROC-AUC  : {auc:.4f}")
+    print("Confusion Matrix:\n", cm)
+
+    # # Save results to CSV
+    # results = pd.DataFrame(rf_random.cv_results_)
+    # results.to_csv("data/rf_randomsearch_results.csv", index=False)
+    # print("\nFull CV results saved to rf_randomsearch_results.csv")
+
+    # return best_model
 
 if __name__ == "__main__":
-    dataset_path = "../data/data_cleaned.csv"   # adjust if needed
-    run_rf_baseline_cv(dataset_path, n_splits=5)
+    dataset_path = "../data/data_cleaned.csv"  # adjust path if needed
+    run_rf_randomsearch(dataset_path)
