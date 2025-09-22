@@ -9,11 +9,15 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score, precision_recall_fscore_support, roc_auc_score, confusion_matrix
 from sklearn.model_selection import train_test_split, StratifiedKFold, RandomizedSearchCV
 from train import prepare_data  
+from utils import RAW_DIR, RESULTS_DIR, MODELS_DIR, LOG_DIR, SEED, set_seed, save_model
+
 
 def run_rf_randomsearch(csv_path, random_state=42):
     """
     Train Random Forest with hyperparameter tuning using RandomizedSearchCV
     """
+
+    set_seed(random_state)
     # Load features and labels
     X, y, vectorizer = prepare_data(csv_path)
 
@@ -47,6 +51,9 @@ def run_rf_randomsearch(csv_path, random_state=42):
     # StratifiedKFold CV
     cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=random_state)
 
+    """
+    USED TO CHECK FOR BEST PARAMETERS
+    """
     # rf_random = RandomizedSearchCV(
     #     estimator=rf,
     #     param_distributions=param_dist,
@@ -67,6 +74,7 @@ def run_rf_randomsearch(csv_path, random_state=42):
 
     # Evaluate best model on test set
     # best_model = rf_random.best_estimator_
+
     rf.fit(X_train,y_train)
     y_pred = rf.predict(X_test)
     y_proba = rf.predict_proba(X_test)[:, 1]
@@ -86,13 +94,24 @@ def run_rf_randomsearch(csv_path, random_state=42):
     print(f"ROC-AUC  : {auc:.4f}")
     print("Confusion Matrix:\n", cm)
 
-    # # Save results to CSV
-    # results = pd.DataFrame(rf_random.cv_results_)
-    # results.to_csv("data/rf_randomsearch_results.csv", index=False)
-    # print("\nFull CV results saved to rf_randomsearch_results.csv")
+    model_path = MODELS_DIR / "rf_final.pkl"
+    save_model(rf, model_path)
 
-    # return best_model
+    # Save results
+    results = pd.DataFrame([{
+        "accuracy": acc,
+        "precision": prec,
+        "recall": rec,
+        "f1": f1,
+        "roc_auc": auc
+    }])
+    results_csv = RESULTS_DIR / "rf_final_results.csv"
+    results.to_csv(results_csv, index=False)
+    print(f"\nSaved test results to {results_csv}")
+
+    return rf
+
 
 if __name__ == "__main__":
-    dataset_path = "../data/data_cleaned.csv"  # adjust path if needed
+    dataset_path =RAW_DIR  # adjust path if needed
     run_rf_randomsearch(dataset_path)

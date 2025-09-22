@@ -4,6 +4,8 @@ import matplotlib.pyplot as plt
 import pandas
 import networkx as nx
 import random
+
+from src.utils import RAW_DIR, PROCESSED_DIR, set_seed, SEED
 """
 PREPROCESSING PORTION
     - Takes in the original file including the manually encoded transcripts
@@ -11,14 +13,10 @@ PREPROCESSING PORTION
     - Calls methods from preprocessing.py, which cleans and formats the dataset
 """
 if __name__ == "__main__":
-    dataset_path = "data/data_cleaned.csv"  # original file
-    output_path = "data/data_cleaned_formatted.csv" #preprocessed path file
-    df = preprocess_dataset(dataset_path)
-
-    # for i, row in df.iterrows():
-    #     print(f"Transcript {i+1}: {row['transcript']}")
-    #     print(f"Tokens {i+1}: {row['tokens']}\n")
+    dataset_path = RAW_DIR  # original file
+    output_path = PROCESSED_DIR / "data_cleaned_formatted.csv" #preprocessed path file
     
+    df = preprocess_dataset(dataset_path)
     save_preprocessed_dataset(df,output_path)
     
     # Checking total number of tokens
@@ -27,11 +25,9 @@ if __name__ == "__main__":
 
     # Total number of tokens (all words across all transcripts)
     total_tokens = len(all_tokens)
-
-    # Unique vocabulary size
     unique_tokens = len(set(all_tokens))
-
-    print(total_tokens)
+    print(f"Total : {total_tokens}")
+    print(f"Unique : {unique_tokens}")
 
 
     # Convert tokens back to text for TF-IDF
