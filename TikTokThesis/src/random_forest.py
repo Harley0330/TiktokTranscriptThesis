@@ -12,7 +12,7 @@ from train import prepare_data
 from utils import RAW_DIR, RESULTS_DIR, MODELS_DIR, LOG_DIR, SEED, set_seed, save_model
 
 
-def run_rf_randomsearch(csv_path, random_state=42):
+def run_rf(csv_path, random_state=42):
     """
     Train Random Forest with hyperparameter tuning using RandomizedSearchCV
     """
@@ -114,4 +114,4 @@ def run_rf_randomsearch(csv_path, random_state=42):
 
 if __name__ == "__main__":
     dataset_path =RAW_DIR  # adjust path if needed
-    run_rf_randomsearch(dataset_path)
+    run_rf(dataset_path)

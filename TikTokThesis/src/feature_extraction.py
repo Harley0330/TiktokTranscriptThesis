@@ -15,13 +15,16 @@ def build_tfidf(corpus, max_features = 10000): # Builds a TF-IDF representation 
     X = vectorizer.fit_transform(corpus)
     return X, vectorizer
 
-def build_word_occurrence_graph(tokens_list, window_size=2): # Builds a word occurence graph from tokenized transcripts
+def build_word_occurrence_graph(tokens_list, window_size, vocab_set=None): # Builds a word occurence graph from tokenized transcripts
 
     G = nx.Graph()
 
     for tokens in tokens_list:
         for i in range(len(tokens) - window_size + 1):
             window = tokens[i:i + window_size]
+
+            if vocab_set is not None:
+                window = [w for w in window if w in vocab_set]
             for w1 in window:
                 for w2 in window:
                     if w1 != w2:

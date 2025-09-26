@@ -4,8 +4,8 @@ Split the dataset
 import pandas as pd
 import numpy as np
 from sklearn.model_selection import StratifiedKFold
-from feature_extraction import build_tfidf
-from preprocessing import preprocess_dataset
+from src.feature_extraction import build_tfidf
+from src.preprocessing import preprocess_dataset
 
 def prepare_data(df, csv_path, max_features=10000):
     """
@@ -50,7 +50,7 @@ def prepare_data(df, csv_path, max_features=10000):
 
 #         fold += 1
 
-def get_folds(X,y, n_splits=5, random_state=42):
+def get_folds(X,y, n_splits=10, random_state=42):
     kf = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=random_state)
     for train_idx, test_idx, in kf.split(X,y):
         yield train_idx, test_idx
