@@ -10,7 +10,7 @@ from sklearn.metrics import accuracy_score, precision_recall_fscore_support, roc
 from sklearn.model_selection import train_test_split, StratifiedKFold, RandomizedSearchCV
 from train import prepare_data  
 from utils import RAW_DIR, RESULTS_DIR, MODELS_DIR, LOG_DIR, SEED, set_seed, save_model
-
+from preprocessing import preprocess_dataset
 
 def run_rf(csv_path, random_state=42):
     """
@@ -19,7 +19,9 @@ def run_rf(csv_path, random_state=42):
 
     set_seed(random_state)
     # Load features and labels
-    X, y, vectorizer = prepare_data(csv_path)
+    dataset_path = RAW_DIR
+    df = preprocess_dataset(dataset_path)
+    X, y, vectorizer = prepare_data(df,csv_path)
 
     # Train/test split (keep 20% for final eval)
     X_train, X_test, y_train, y_test = train_test_split(
@@ -49,7 +51,7 @@ def run_rf(csv_path, random_state=42):
     )
 
     # StratifiedKFold CV
-    cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=random_state)
+    cv = StratifiedKFold(n_splits=15, shuffle=True, random_state=random_state)
 
     """
     USED TO CHECK FOR BEST PARAMETERS
@@ -110,6 +112,46 @@ def run_rf(csv_path, random_state=42):
     print(f"\nSaved test results to {results_csv}")
 
     return rf
+
+def run_rf_with_features(X_train, X_test, y_train, y_test, *, random_state=42):
+    """
+    Train and evaluate a Random Forest on given features, returning both train and test metrics.
+    """
+    rf = RandomForestClassifier(
+        n_estimators=700,
+        max_depth = None,
+        min_samples_split=10,
+        min_samples_leaf=2,
+        max_features="log2",
+        class_weight="balanced",
+        random_state=random_state,
+        n_jobs=-1,
+        bootstrap=True,
+        oob_score=True
+    )
+
+    # Train the model
+    rf.fit(X_train, y_train)
+
+    # --- Train predictions ---
+    y_train_pred = rf.predict(X_train)
+    y_train_proba = rf.predict_proba(X_train)[:, 1]
+    train_acc = accuracy_score(y_train, y_train_pred)
+    train_prec, train_rec, train_f1, _ = precision_recall_fscore_support(
+        y_train, y_train_pred, average="binary", pos_label=1, zero_division=0
+    )
+
+    # --- Test predictions ---
+    y_pred = rf.predict(X_test)
+    y_proba = rf.predict_proba(X_test)[:, 1]
+    acc = accuracy_score(y_test, y_pred)
+    prec, rec, f1, _ = precision_recall_fscore_support(
+        y_test, y_pred, average="binary", pos_label=1, zero_division=0
+    )
+
+    return rf, y_pred, y_proba, acc, prec, rec, f1, train_acc, train_prec, train_rec, train_f1
+
+
 
 
 if __name__ == "__main__":
