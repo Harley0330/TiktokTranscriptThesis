@@ -79,6 +79,51 @@ class GNNClassifier(nn.Module):
         # --- Classification head ---
         out = self.fc(doc_embeddings)
         return out
+    
+    def get_doc_embeddings(self, x, edge_index, docs_tokens, vocab_index, tfidf_matrix=None):
+        """
+        Returns 64-dimensional document embeddings before the final classification layer.
+        """
+        # === Forward until before fc ===
+        x1 = self.conv1(x, edge_index)
+        x1 = self.bn1(x1)
+        x1 = F.relu(x1)
+        x1 = F.dropout(x1, p=self.dropout, training=self.training)
+
+        x2 = self.conv2(x1, edge_index)
+        x2 = self.bn2(x2)
+        x2 = F.relu(x2 + x1)
+
+        x3 = self.conv3(x2, edge_index)
+        x3 = self.bn3(x3)
+        x3 = F.relu(x3 + x2)
+
+        x4 = self.conv4(x3, edge_index)
+        x4 = self.bn4(x4)
+        word_embeddings = F.relu(x4 + x3)
+
+        # === Weighted pooling to get doc embeddings ===
+        doc_embeddings = []
+        for doc_idx, tokens in enumerate(docs_tokens):
+            word_ids = [vocab_index[w] for w in tokens if w in vocab_index]
+            if word_ids:
+                weights = tfidf_matrix[doc_idx, word_ids]
+                if hasattr(weights, "toarray"):
+                    weights = torch.tensor(weights.toarray().ravel(), device=x.device, dtype=torch.float)
+                else:
+                    weights = torch.tensor(weights, device=x.device, dtype=torch.float)
+
+                we = word_embeddings[word_ids]
+                if weights.sum() > 0:
+                    emb = (we * weights.unsqueeze(1)).sum(dim=0) / (weights.sum() + 1e-8)
+                else:
+                    emb = we.mean(dim=0)
+            else:
+                emb = torch.zeros(word_embeddings.size(1), device=x.device)
+            doc_embeddings.append(emb)
+
+        return torch.stack(doc_embeddings)  # shape: (num_docs, 64)
+
 
 
 def train_gnn(model, data, optimizer, criterion, device="cpu"):
