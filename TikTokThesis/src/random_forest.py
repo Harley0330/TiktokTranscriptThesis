@@ -118,8 +118,8 @@ def run_rf_with_features(X_train, X_test, y_train, y_test, *, random_state=42):
     Train and evaluate a Random Forest on given features, returning both train and test metrics.
     """
     rf = RandomForestClassifier(
-        n_estimators=1500,
-        max_depth = None,
+        n_estimators=2000,
+        max_depth=None,
         min_samples_split=10,
         min_samples_leaf=2,
         max_features="log2",
