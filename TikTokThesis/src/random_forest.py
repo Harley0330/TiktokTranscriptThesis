@@ -121,13 +121,13 @@ def run_rf_with_features(X_train, X_test, y_train, y_test, *, random_state=42):
         n_estimators=2000,
         max_depth=None,
         min_samples_split=10,
-        min_samples_leaf=2,
+        min_samples_leaf=1,  # or 2
         max_features="log2",
         class_weight="balanced",
         random_state=random_state,
         n_jobs=-1,
         bootstrap=True,
-        oob_score=True
+        oob_score=True,
     )
 
     # Train the model
