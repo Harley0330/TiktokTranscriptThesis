@@ -122,6 +122,7 @@ def run_rf_with_features(X_train, X_test, y_train, y_test, *, random_state=42):
         max_depth=None,
         min_samples_split=10,
         min_samples_leaf=1,  # or 2
+        max_samples=0.85,
         max_features="log2",
         class_weight="balanced",
         random_state=random_state,

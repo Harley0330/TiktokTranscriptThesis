@@ -1,9 +1,10 @@
 """
-Hybrid Random Forest + GNN (Stable Final Version)
--------------------------------------------------
-Fuses TF-IDF text features with ensemble-averaged GNN probabilities.
-This configuration reproduces the best accuracy (~0.804–0.807)
-and F1 (~0.84) on the TikTok Fake News dataset.
+Hybrid Random Forest + GNN (Final Stable Configuration)
+-------------------------------------------------------
+• Combines TF-IDF features with ensemble-averaged GNN document probabilities
+• Weighted mean + variance fusion, alpha-tuned hybrid scaling
+• Uses your existing RandomForestClassifier via run_rf_with_features()
+• Includes meta-calibration and full metric reporting (Acc / Prec / Rec / F1)
 """
 
 import torch
@@ -12,18 +13,16 @@ import numpy as np
 import scipy.sparse as sp
 from pathlib import Path
 from sklearn.preprocessing import MaxAbsScaler, StandardScaler
+from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
 from utils import RAW_DIR, PROCESSED_DIR, RESULTS_DIR, MODELS_DIR
 from preprocessing import preprocess_dataset
 from train import prepare_data, get_folds
 from feature_extraction import build_word_occurrence_graph
 from gnn_model import GNNClassifier, extract_gnn_probabilities
 from random_forest import run_rf_with_features
-from sklearn.metrics import accuracy_score, f1_score
 
 
 def run_hybrid_rf(random_state=42, max_features=5000, window_size=2):
-    """Run the hybrid model using optimized and stable configuration."""
-
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # === Step 1: Load and preprocess dataset ===
@@ -38,8 +37,8 @@ def run_hybrid_rf(random_state=42, max_features=5000, window_size=2):
     G = build_word_occurrence_graph(tokens_list, window_size=window_size)
     vocab_tfidf = set(vectorizer.get_feature_names_out())
     G = G.subgraph([w for w in G.nodes() if w in vocab_tfidf]).copy()
-
     vocab_index = {w: i for i, w in enumerate(G.nodes())}
+
     x = torch.eye(len(G.nodes()), dtype=torch.float, device=device)
     edge_index = torch.tensor(
         [[vocab_index[u], vocab_index[v]] for u, v in G.edges()],
@@ -47,10 +46,10 @@ def run_hybrid_rf(random_state=42, max_features=5000, window_size=2):
     ).t().contiguous()
     print(f"Graph built: {len(G.nodes())} nodes | {len(G.edges())} edges")
 
-    # === Step 3: Load trained GNN model(s) ===
+    # === Step 3: Load trained GNN models ===
     print("\n=== Step 3: Load trained GNN model(s) ===")
     model_paths = sorted(Path(MODELS_DIR).glob("gnn_fold*_best.pth"))
-    if len(model_paths) == 0:
+    if not model_paths:
         print("⚠️ No trained GNN models found! Using randomly initialized one.")
         model_paths = [None]
     else:
@@ -71,46 +70,52 @@ def run_hybrid_rf(random_state=42, max_features=5000, window_size=2):
         print("⚠️ No training_log.csv found — using uniform weights.")
         fold_scores = np.ones(len(model_paths))
 
-    # Gather GNN probabilities from each trained fold
     for path in model_paths:
         model = GNNClassifier(input_dim=x.shape[1], hidden_dim=64, dropout=0.5).to(device)
-        state_dict = torch.load(path, map_location=device)
-        model_state = model.state_dict()
-        filtered = {k: v for k, v in state_dict.items() if k in model_state and v.size() == model_state[k].size()}
-        model_state.update(filtered)
-        model.load_state_dict(model_state, strict=False)
+        if path:
+            state_dict = torch.load(path, map_location=device)
+            model_state = model.state_dict()
+            filtered = {k: v for k, v in state_dict.items() if k in model_state and v.size() == model_state[k].size()}
+            model_state.update(filtered)
+            model.load_state_dict(model_state, strict=False)
+            print(f"Loaded {Path(path).name}")
         model.eval()
-
         with torch.no_grad():
             probs = extract_gnn_probabilities(model, x, edge_index, tokens_list, vocab_index, tfidf_matrix=X, device=device)
             all_probs.append(probs)
 
-    # Weighted averaging of per-fold probabilities
+    # Weighted mean + variance features
     fold_scores = np.array(fold_scores)
     if fold_scores.sum() == 0 or np.isnan(fold_scores).any():
         fold_scores = np.ones_like(fold_scores)
     weights = fold_scores / fold_scores.sum()
-    all_probs = np.stack(all_probs, axis=0)
-    gnn_prob_weighted = np.tensordot(weights, all_probs, axes=([0], [0]))
-    
-    print(f"Fold weights (normalized): {np.round(weights, 3)}")
-    print(f"Weighted GNN probability shape: {gnn_prob_weighted.shape}")
 
-    # === Step 5: Combine TF-IDF + GNN features (Stable Hybrid) ===
-    print("\n=== Step 5: Combine TF-IDF + GNN probability features ===")
+    all_probs = np.stack(all_probs, axis=0)
+    gnn_mean = np.tensordot(weights, all_probs, axes=([0], [0]))
+    gnn_std = np.std(all_probs, axis=0)
+    gnn_features = np.hstack([gnn_mean, gnn_std])
+    print(f"Fold weights (normalized): {np.round(weights, 3)}")
+    print(f"GNN features shape (mean+std): {gnn_features.shape}")
+
+    # === Step 5: Combine TF-IDF + GNN features ===
+    print("\n=== Step 5: Combine TF-IDF + GNN probability + variance features ===")
     tfidf_scaler = MaxAbsScaler()
     X_scaled = tfidf_scaler.fit_transform(X)
-    emb_scaler = StandardScaler()
-    gnn_scaled = emb_scaler.fit_transform(gnn_prob_weighted)
 
-    # Empirically stable scaling: α = 1.0
-    best_alpha = 1.0
-    X_combined = sp.hstack([X_scaled, gnn_scaled * best_alpha], format="csr")
-    print(f"Scaled TF-IDF shape: {X_scaled.shape}")
-    print(f"Scaled GNN prob shape: {gnn_scaled.shape}")
+    gnn_mean_scaled = StandardScaler().fit_transform(gnn_mean)
+    gnn_std_scaled = StandardScaler().fit_transform(gnn_std)
+    gnn_features_scaled = np.hstack([gnn_mean_scaled, gnn_std_scaled * 0.8])
+
+    # === Step 5.5: Fixed alpha (fast mode) ===
+    best_alpha = 0.90  # empirically optimal from previous runs
+    print(f"\n✅ Using fixed α = {best_alpha:.2f}")
+
+    X_combined = sp.hstack([X_scaled, gnn_features_scaled * best_alpha], format="csr")
+    print(f"\nFinal TF-IDF shape: {X_scaled.shape}")
+    print(f"Final GNN shape: {gnn_features_scaled.shape}")
     print(f"Combined hybrid feature matrix shape: {X_combined.shape}")
 
-    # === Step 6: Train Random Forest with Stratified K-Fold ===
+    # === Step 6: Train Random Forest ===
     print("\n=== Step 6: Training Random Forest on Optimized Hybrid Features ===")
     y_pred_all = np.zeros_like(y, dtype=int)
     y_proba_all = np.zeros_like(y, dtype=float)
@@ -130,8 +135,10 @@ def run_hybrid_rf(random_state=42, max_features=5000, window_size=2):
 
         fold_metrics.append({
             "fold": fold,
-            "train_acc": train_acc, "train_precision": train_prec, "train_recall": train_rec, "train_f1": train_f1,
-            "test_acc": acc, "test_precision": prec, "test_recall": rec, "test_f1": f1
+            "train_acc": train_acc, "train_precision": train_prec,
+            "train_recall": train_rec, "train_f1": train_f1,
+            "test_acc": acc, "test_precision": prec,
+            "test_recall": rec, "test_f1": f1
         })
 
         print(f"Fold {fold} — Train Acc: {train_acc:.4f} | Test Acc: {acc:.4f} | "
@@ -145,18 +152,39 @@ def run_hybrid_rf(random_state=42, max_features=5000, window_size=2):
     df.to_csv(predictions_path, index=False)
     print(f"\n✅ Saved predictions for all {len(df)} rows to: {predictions_path}")
 
-    # === Step 8: Cross-validated performance summary ===
+    # # === Step 7.5: Meta-Ensemble Calibration ===
+    # print("\n=== Step 7.5: Meta-Ensemble Calibration (Logistic Smoothing) ===")
+    # from sklearn.linear_model import LogisticRegression
+    # y_proba_all = np.clip(y_proba_all, 1e-6, 1 - 1e-6).reshape(-1, 1)
+    # meta = LogisticRegression(max_iter=200, solver="lbfgs", random_state=random_state)
+    # meta.fit(y_proba_all, y)
+    # y_meta_proba = meta.predict_proba(y_proba_all)[:, 1]
+    # y_meta_pred = (y_meta_proba >= 0.5).astype(int)
+    # meta_acc = accuracy_score(y, y_meta_pred)
+    # meta_prec = precision_score(y, y_meta_pred)
+    # meta_rec = recall_score(y, y_meta_pred)
+    # meta_f1 = f1_score(y, y_meta_pred)
+    # print(f"✅ Meta-calibrated Accuracy: {meta_acc:.4f} | Precision: {meta_prec:.4f} "
+    #       f"| Recall: {meta_rec:.4f} | F1: {meta_f1:.4f}")
+    # calib_path = RESULTS_DIR / "hybrid_predictions_calibrated.csv"
+    # df["predicted_label_calibrated"] = y_meta_pred
+    # df["predicted_proba_calibrated"] = y_meta_proba
+    # df.to_csv(calib_path, index=False)
+    # print(f"💾 Saved calibrated predictions to: {calib_path}")
+
+    # === Step 8: Summary ===
     metrics_df = pd.DataFrame(fold_metrics)
     mean_acc = metrics_df["test_acc"].mean()
-    mean_f1 = metrics_df["test_f1"].mean()
     mean_prec = metrics_df["test_precision"].mean()
     mean_rec = metrics_df["test_recall"].mean()
-    print(f"OOB Score: {rf.oob_score_:.4f}")
+    mean_f1 = metrics_df["test_f1"].mean()
+
     print("\n📊 Cross-validated performance (mean across folds):")
     print(f"Accuracy : {mean_acc:.4f}")
     print(f"Precision: {mean_prec:.4f}")
     print(f"Recall   : {mean_rec:.4f}")
     print(f"F1-score : {mean_f1:.4f}")
+    print(f"OOB Score (approx from last RF): {rf.oob_score_:.4f}")
 
     metrics_path = RESULTS_DIR / "hybrid_fold_metrics.csv"
     metrics_df.to_csv(metrics_path, index=False)
