@@ -8,9 +8,9 @@ import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score, precision_recall_fscore_support, roc_auc_score, confusion_matrix
 from sklearn.model_selection import train_test_split, StratifiedKFold, RandomizedSearchCV
-from train import prepare_data  
-from utils import RAW_DIR, RESULTS_DIR, MODELS_DIR, LOG_DIR, SEED, set_seed, save_model
-from preprocessing import preprocess_dataset
+from src.train import prepare_data  
+from src.utils import RAW_DIR, RESULTS_DIR, MODELS_DIR, LOG_DIR, SEED, set_seed, save_model
+from src.preprocessing import preprocess_dataset
 
 def run_rf(csv_path, random_state=42):
     """
@@ -119,7 +119,7 @@ def run_rf_with_features(X_train, X_test, y_train, y_test, *, random_state=42):
     """
     rf = RandomForestClassifier(
         n_estimators=2000,
-        max_depth=None,
+        max_depth=200,
         min_samples_split=10,
         min_samples_leaf=1,  # or 2
         max_samples=0.85,

@@ -10,7 +10,7 @@ from torch_geometric.data import Data
 from sklearn.metrics import confusion_matrix
 import torch.optim as optim
 import pandas as pd
-from train import get_folds
+from src.train import get_folds
 from sklearn.metrics import precision_score, recall_score
 class GNNClassifier(nn.Module):
     def __init__(self, input_dim, hidden_dim=64, num_classes=2, dropout=0.5):
@@ -28,7 +28,6 @@ class GNNClassifier(nn.Module):
         self.bn3 = GraphNorm(hidden_dim)
         self.bn4 = GraphNorm(hidden_dim)
 
-        # --- Fully connected output layer ---
         self.fc = nn.Linear(hidden_dim, num_classes)
         self.dropout = dropout
 
@@ -54,7 +53,7 @@ class GNNClassifier(nn.Module):
         x4 = self.bn4(x4)
         word_embeddings = F.relu(x4 + x3)  # residual
 
-        # --- Pool node embeddings → doc embeddings ---
+        # Embeddings
         doc_embeddings = []
         for doc_idx, tokens in enumerate(docs_tokens):
             word_ids = [vocab_index[w] for w in tokens if w in vocab_index]
@@ -76,55 +75,8 @@ class GNNClassifier(nn.Module):
 
         doc_embeddings = torch.stack(doc_embeddings)
 
-        # --- Classification head ---
         out = self.fc(doc_embeddings)
         return out
-    
-    def get_doc_embeddings(self, x, edge_index, docs_tokens, vocab_index, tfidf_matrix=None):
-        """
-        Returns 64-dimensional document embeddings before the final classification layer.
-        """
-        # === Forward until before fc ===
-        x1 = self.conv1(x, edge_index)
-        x1 = self.bn1(x1)
-        x1 = F.relu(x1)
-        x1 = F.dropout(x1, p=self.dropout, training=self.training)
-
-        x2 = self.conv2(x1, edge_index)
-        x2 = self.bn2(x2)
-        x2 = F.relu(x2 + x1)
-
-        x3 = self.conv3(x2, edge_index)
-        x3 = self.bn3(x3)
-        x3 = F.relu(x3 + x2)
-
-        x4 = self.conv4(x3, edge_index)
-        x4 = self.bn4(x4)
-        word_embeddings = F.relu(x4 + x3)
-
-        # === Weighted pooling to get doc embeddings ===
-        doc_embeddings = []
-        for doc_idx, tokens in enumerate(docs_tokens):
-            word_ids = [vocab_index[w] for w in tokens if w in vocab_index]
-            if word_ids:
-                weights = tfidf_matrix[doc_idx, word_ids]
-                if hasattr(weights, "toarray"):
-                    weights = torch.tensor(weights.toarray().ravel(), device=x.device, dtype=torch.float)
-                else:
-                    weights = torch.tensor(weights, device=x.device, dtype=torch.float)
-
-                we = word_embeddings[word_ids]
-                if weights.sum() > 0:
-                    emb = (we * weights.unsqueeze(1)).sum(dim=0) / (weights.sum() + 1e-8)
-                else:
-                    emb = we.mean(dim=0)
-            else:
-                emb = torch.zeros(word_embeddings.size(1), device=x.device)
-            doc_embeddings.append(emb)
-
-        return torch.stack(doc_embeddings)  # shape: (num_docs, 64)
-
-
 
 def train_gnn(model, data, optimizer, criterion, device="cpu"):
     model.train()
@@ -138,7 +90,6 @@ def train_gnn(model, data, optimizer, criterion, device="cpu"):
     loss.backward()
     optimizer.step()
     return loss.item()
-
 
 def test_gnn(model, data, device="cpu"):
     model.eval()
@@ -158,7 +109,6 @@ def test_gnn(model, data, device="cpu"):
     )
 
     return acc, preds, out, cm
-
 
 def graph_to_pyg_data(G, X, y, train_idx, test_idx):
     # --- Edges ---
@@ -191,9 +141,7 @@ def graph_to_pyg_data(G, X, y, train_idx, test_idx):
 
 def train_gnn_cv(X, y, tokens_list, vocab_index, x, edge_index, device="cpu", n_splits=15, out_path="training_log.csv"):
     """
-    Full Stratified K-Fold training for GNN model.
-    Logs loss, accuracy, precision, recall per epoch per fold.
-    Saves best model per fold.
+    Saves best GNN model per fold.
     """
     from utils import MODELS_DIR
     MODELS_DIR.mkdir(exist_ok=True, parents=True)
@@ -310,7 +258,7 @@ def train_gnn_cv(X, y, tokens_list, vocab_index, x, edge_index, device="cpu", n_
 @torch.no_grad()
 def extract_gnn_probabilities(model, x, edge_index, docs_tokens, vocab_index, tfidf_matrix=None, device="cpu"):
     """
-    Compute per-document probabilities (not per-word)
+    Extract GNN probabilities per document (row)
     """
     model.eval()
     x = x.to(device)
@@ -326,60 +274,6 @@ def extract_gnn_probabilities(model, x, edge_index, docs_tokens, vocab_index, tf
         probs = out.squeeze()  # already sigmoid output
 
     return probs.detach().cpu().numpy().reshape(-1, 1)
-
-@torch.no_grad()
-def extract_gnn_embeddings(model, x, edge_index, docs_tokens, vocab_index, tfidf_matrix=None, device="cpu"):
-    """
-    Returns per-document embeddings (the hidden vector before classification)
-    for hybrid Random Forest training.
-    """
-    model.eval()
-    x = x.to(device)
-    edge_index = edge_index.to(device)
-
-    # Forward pass through model to get document embeddings
-    # We'll manually compute up to the fc input (skip classification layer)
-    # Reusing model.forward logic for simplicity
-    with torch.no_grad():
-        x1 = model.conv1(x, edge_index)
-        x1 = model.bn1(x1)
-        x1 = F.relu(x1)
-        x1 = F.dropout(x1, p=model.dropout, training=False)
-
-        x2 = model.conv2(x1, edge_index)
-        x2 = model.bn2(x2)
-        x2 = F.relu(x2 + x1)
-
-        x3 = model.conv3(x2, edge_index)
-        x3 = model.bn3(x3)
-        x3 = F.relu(x3 + x2)
-
-        x4 = model.conv4(x3, edge_index)
-        x4 = model.bn4(x4)
-        word_embeddings = F.relu(x4 + x3)
-
-        doc_embeddings = []
-        for doc_idx, tokens in enumerate(docs_tokens):
-            word_ids = [vocab_index[w] for w in tokens if w in vocab_index]
-            if word_ids:
-                weights = tfidf_matrix[doc_idx, word_ids]
-                if hasattr(weights, "toarray"):
-                    weights = torch.tensor(weights.toarray().ravel(), device=device, dtype=torch.float)
-                else:
-                    weights = torch.tensor(weights, device=device, dtype=torch.float)
-
-                we = word_embeddings[word_ids]
-                if weights.sum() > 0:
-                    emb = (we * weights.unsqueeze(1)).sum(dim=0) / (weights.sum() + 1e-8)
-                else:
-                    emb = we.mean(dim=0)
-            else:
-                emb = torch.zeros(word_embeddings.size(1), device=device)
-            doc_embeddings.append(emb)
-
-        doc_embeddings = torch.stack(doc_embeddings)
-
-    return doc_embeddings.detach().cpu().numpy()  # shape: (num_docs, hidden_dim)
 
 #def random_search():
     # #RANDOMIZED SEARCH

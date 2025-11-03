@@ -1,9 +1,9 @@
 import torch
-from utils import RAW_DIR, MODELS_DIR, PROCESSED_DIR
-from preprocessing import preprocess_dataset
-from train import prepare_data
-from feature_extraction import build_word_occurrence_graph
-from gnn_model import train_gnn_cv
+from src.utils import RAW_DIR, MODELS_DIR, PROCESSED_DIR
+from src.preprocessing import preprocess_dataset
+from src.train import prepare_data
+from src.feature_extraction import build_word_occurrence_graph
+from src.gnn_model import train_gnn_cv
 from sklearn.decomposition import TruncatedSVD
 import numpy as np
 

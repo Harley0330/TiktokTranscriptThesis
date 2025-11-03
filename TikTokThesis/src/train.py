@@ -4,8 +4,8 @@ Split the dataset
 import pandas as pd
 import numpy as np
 from sklearn.model_selection import StratifiedKFold
-from feature_extraction import build_tfidf
-from preprocessing import preprocess_dataset
+from src.feature_extraction import build_tfidf
+from src.preprocessing import preprocess_dataset
 
 def prepare_data(df, csv_path, max_features=10000):
     """
