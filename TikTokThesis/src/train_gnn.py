@@ -1,3 +1,8 @@
+"""
+Runs the train_gnn() method in the gnn_model.py file
+Saves trained models per fold to be used in the final hybrid model
+"""
+
 import torch
 from src.utils import RAW_DIR, MODELS_DIR, PROCESSED_DIR
 from src.preprocessing import preprocess_dataset

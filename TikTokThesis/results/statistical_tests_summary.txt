@@ -1,0 +1,17 @@
+=== Statistical Tests Summary ===
+KS_statistic: 0.3333333333333333
+KS_pvalue: 0.3855465198257425
+Normality: Normal
+Test_used: Paired t-test
+T_stat: 2.677122026353729
+T_p: 0.018046833782012123
+McNemar_stat: 4.682926829268292
+McNemar_p: 0.03046380272268888
+Baseline_mean_acc: 0.8132668963254595
+Hybrid_mean_acc: 0.8263738517060369
+Baseline_mean_prec: 0.8227638190606055
+Hybrid_mean_prec: 0.8319217672373681
+Baseline_mean_rec: 0.8718198198198198
+Hybrid_mean_rec: 0.8877477477477479
+Baseline_mean_f1: 0.8462715333977596
+Hybrid_mean_f1: 0.8573270668965199

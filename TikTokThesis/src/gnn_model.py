@@ -275,6 +275,9 @@ def extract_gnn_probabilities(model, x, edge_index, docs_tokens, vocab_index, tf
 
     return probs.detach().cpu().numpy().reshape(-1, 1)
 
+"""
+Random search method used to search for the best performing parameters
+"""
 #def random_search():
     # #RANDOMIZED SEARCH
 

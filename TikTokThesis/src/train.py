@@ -50,6 +50,9 @@ def prepare_data(df, csv_path, max_features=10000):
 
 #         fold += 1
 
+"""
+Method used to declare the number of folds the data will be split into
+"""
 def get_folds(X,y, n_splits, random_state=42):
     kf = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=random_state)
     for train_idx, test_idx, in kf.split(X,y):

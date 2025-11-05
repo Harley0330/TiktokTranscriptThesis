@@ -115,7 +115,7 @@ def run_hybrid_rf(df,X, y, tokens_list, vectorizer, G, vocab_index, device, rand
                 best_acc_alpha = acc_a
                 best_alpha = alpha
 
-        # Rebuild hybrid features with the best α for this fold
+        # Use optimized alpha for current fold
         X_train_opt = sp.hstack([tfidf_scaled[train_idx],
                                 gnn_scaled[train_idx] * best_alpha], format="csr")
         X_test_opt = sp.hstack([tfidf_scaled[test_idx],

@@ -3,6 +3,7 @@ from src.feature_extraction import build_tfidf, build_word_occurrence_graph
 from src.train import prepare_data, get_folds
 from src.gnn_model import train_gnn_cv
 from src.hybrid_rf_gnn import run_hybrid_rf
+from src.random_forest import run_rf, run_rf_baseline_cv
 import matplotlib.pyplot as plt
 import torch
 import random
@@ -75,6 +76,9 @@ if __name__ == "__main__":
     num_nodes = len(vocab)
     num_docs = X_dense.shape[0]
 
+    #Baseline (Random Forest only)
+    run_rf_baseline_cv(df)
+
     # Node features: TF-IDF values per word across all docs
     node_features = np.zeros((num_nodes, num_docs))  # [num_nodes, num_docs]
 
@@ -104,6 +108,6 @@ if __name__ == "__main__":
     vocab_index = {w: i for i, w in enumerate(G.nodes())}
     x = torch.eye(len(G.nodes()), dtype=torch.float, device=device)
 
-    run_hybrid_rf(df, X, y, tokens_list, vectorizer, G, vocab_index, device, random_state=42)
+    #run_hybrid_rf(df, X, y, tokens_list, vectorizer, G, vocab_index, device, random_state=42)
 
     
