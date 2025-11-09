@@ -8,9 +8,12 @@ import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score, precision_recall_fscore_support, roc_auc_score, confusion_matrix
 from sklearn.model_selection import train_test_split, StratifiedKFold, RandomizedSearchCV
-from src.train import prepare_data  
+from src.train import prepare_data, get_folds
 from src.utils import RAW_DIR, RESULTS_DIR, MODELS_DIR, LOG_DIR, SEED, set_seed, save_model
 from src.preprocessing import preprocess_dataset
+from sklearn.model_selection import RandomizedSearchCV, StratifiedKFold
+from sklearn.metrics import make_scorer, f1_score
+import numpy as np
 
 def run_rf(csv_path, random_state=42):
     """
@@ -112,109 +115,101 @@ def run_rf(csv_path, random_state=42):
 
 def run_rf_baseline_cv(df, random_state=42, n_splits=15, max_features=5000):
     """
-    Runs a Random Forest baseline using TF-IDF features only,
-    with 15-fold Stratified CV (to match the hybrid model setup).
-    Saves per-fold metrics for statistical testing.
+    Final Random Forest model using best parameters (generalization-optimized).
+    Evaluates 15-fold Stratified CV, displays training/test metrics, and saves results.
     """
 
     set_seed(random_state)
     X, y, vectorizer = prepare_data(df, RAW_DIR / "data_cleaned_formatted.csv", max_features=max_features)
     print(f"Loaded {len(y)} samples | TF-IDF shape: {X.shape}")
 
-    cv = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=random_state)
-    fold_metrics, y_pred_all, y_proba_all = [], np.zeros_like(y), np.zeros_like(y, dtype=float)
+    # --- Final tuned parameters (from least-gap search) ---
+    rf = RandomForestClassifier(
+        n_estimators=700,
+        max_depth=15,
+        min_samples_split=10,
+        min_samples_leaf=4,
+        max_features="log2",
+        class_weight="balanced_subsample",
+        random_state=random_state,
+        n_jobs=-1,
+        oob_score=True,
+        bootstrap=True,
+    )
 
-    print(f"\n=== Step 2: Training Random Forest ({n_splits}-fold CV) ===")
+    # --- Cross-validation setup ---
+    cv = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=random_state)
+    fold_metrics = []
+
+    print(f"\n=== Step 2: Training Final Tuned Random Forest ({n_splits}-fold CV) ===")
 
     for fold, (train_idx, test_idx) in enumerate(cv.split(X, y), start=1):
         X_train, X_test = X[train_idx], X[test_idx]
         y_train, y_test = y[train_idx], y[test_idx]
 
-        rf = RandomForestClassifier(
-            n_estimators=200,
-            max_depth=None,
-            min_samples_split=5,
-            min_samples_leaf=1,
-            max_features="log2",
-            class_weight="balanced",
-            random_state=random_state,
-            n_jobs=-1,
-            bootstrap=True,
-            oob_score=True,
-        )
-
         rf.fit(X_train, y_train)
 
-        # Parameter distributions for RandomizedSearchCV
-        # param_dist = {
-        #     "n_estimators": [100, 200, 400, 600],
-        #     "max_depth": [None, 10, 20, 30, 50],
-        #     "max_features": ["sqrt", "log2", None],
-        #     "min_samples_split": [2, 5, 10],
-        #     "min_samples_leaf": [1, 2, 4],
-        #     "bootstrap": [True, False],
-        # }
-
         # Predictions
+        y_train_pred = rf.predict(X_train)
         y_pred = rf.predict(X_test)
-        y_proba = rf.predict_proba(X_test)[:, 1]
-        y_pred_all[test_idx], y_proba_all[test_idx] = y_pred, y_proba
 
         # Metrics
-        acc = accuracy_score(y_test, y_pred)
-        prec, rec, f1, _ = precision_recall_fscore_support(
+        train_acc = accuracy_score(y_train, y_train_pred)
+        test_acc = accuracy_score(y_test, y_pred)
+        train_prec, train_rec, train_f1, _ = precision_recall_fscore_support(
+            y_train, y_train_pred, average="binary", pos_label=1, zero_division=0
+        )
+        test_prec, test_rec, test_f1, _ = precision_recall_fscore_support(
             y_test, y_pred, average="binary", pos_label=1, zero_division=0
         )
+
         fold_metrics.append({
             "fold": fold,
-            "test_acc": acc,
-            "test_prec": prec,
-            "test_rec": rec,
-            "test_f1": f1,
+            "train_acc": train_acc,
+            "test_acc": test_acc,
+            "train_f1": train_f1,
+            "test_f1": test_f1,
+            "acc_gap": abs(train_acc - test_acc),
+            "f1_gap": abs(train_f1 - test_f1),
         })
 
-        print(f"Fold {fold:02d} — Acc:{acc:.4f} Prec:{prec:.4f} Rec:{rec:.4f} F1:{f1:.4f}")
+        print(f"\nFold {fold:02d}")
+        print(f"  🔹 Train — Acc:{train_acc:.4f} F1:{train_f1:.4f}")
+        print(f"  🔹 Test  — Acc:{test_acc:.4f} F1:{test_f1:.4f}")
+        print(f"  🔹 Gaps  — Acc Gap:{abs(train_acc - test_acc):.4f} | F1 Gap:{abs(train_f1 - test_f1):.4f}")
 
-    # Aggregate mean metrics
+    # --- Summary ---
     metrics_df = pd.DataFrame(fold_metrics)
-    mean_acc, mean_f1 = metrics_df["test_acc"].mean(), metrics_df["test_f1"].mean()
-    print(f"\n📊 Mean CV Accuracy: {mean_acc:.4f} | F1: {mean_f1:.4f}")
+    mean_train_acc, mean_test_acc = metrics_df["train_acc"].mean(), metrics_df["test_acc"].mean()
+    mean_train_f1, mean_test_f1 = metrics_df["train_f1"].mean(), metrics_df["test_f1"].mean()
+    mean_acc_gap = abs(mean_train_acc - mean_test_acc)
+    mean_f1_gap = abs(mean_train_f1 - mean_test_f1)
 
-    # Save results
-    df["predicted_label_baseline"] = y_pred_all
-    df["predicted_label_baseline"] = df["predicted_label_baseline"].map({1: "fake", 0: "real"})
-    df["predicted_proba_baseline"] = y_proba_all
-    df.to_csv(RESULTS_DIR / "baseline_predictions_full.csv", index=False)
-    metrics_df.to_csv(RESULTS_DIR / "baseline_fold_metrics.csv", index=False)
+    print(f"\n📊 Mean Train Accuracy: {mean_train_acc:.4f} | Test Accuracy: {mean_test_acc:.4f}")
+    print(f"📊 Mean Train F1: {mean_train_f1:.4f} | Test F1: {mean_test_f1:.4f}")
+    print(f"📉 Accuracy Gap: {mean_acc_gap*100:.2f}% | F1 Gap: {mean_f1_gap*100:.2f}%")
+    print(f"OOB Score (baseline model): {rf.oob_score_:.4f}")
 
-    print(f"\n💾 Saved per-fold metrics to baseline_fold_metrics.csv")
-    print(f"💾 Saved full predictions to baseline_predictions_full.csv")
+    # --- Append summary row ---
+    summary_row = pd.DataFrame([{
+        "fold": "mean",
+        "train_acc": mean_train_acc,
+        "test_acc": mean_test_acc,
+        "train_f1": mean_train_f1,
+        "test_f1": mean_test_f1,
+        "acc_gap": mean_acc_gap,
+        "f1_gap": mean_f1_gap,
+    }])
+
+    metrics_df = pd.concat([metrics_df, summary_row], ignore_index=True)
+
+    # --- Save results ---
+    save_path = RESULTS_DIR / "baseline_rf_metrics.csv"
+    metrics_df.to_csv(save_path, index=False)
+    print(f"\n💾 Saved per-fold + mean metrics to {save_path}")
 
     return metrics_df
 
-    """
-    USED TO CHECK FOR BEST PARAMETERS
-    """
-    # rf_random = RandomizedSearchCV(
-    #     estimator=rf,
-    #     param_distributions=param_dist,
-    #     n_iter=30,                 # number of random combos
-    #     cv=cv,
-    #     scoring="f1",              # optimize F1 (can change to "accuracy")
-    #     verbose=2,
-    #     random_state=random_state,
-    #     n_jobs=-1
-    # )
-
-    # # Fit RandomizedSearchCV
-    # rf_random.fit(X_train, y_train)
-
-    # # Best parameters & CV score
-    # print("\nBest Params:", rf_random.best_params_)
-    # print("Best CV F1 Score:", rf_random.best_score_)
-
-    # Evaluate best model on test set
-    # best_model = rf_random.best_estimator_
 
 
 def run_rf_with_features(X_train, X_test, y_train, y_test, *, random_state=42):
@@ -223,10 +218,10 @@ def run_rf_with_features(X_train, X_test, y_train, y_test, *, random_state=42):
     Method used for training the hybrid model
     """
     rf = RandomForestClassifier(
-        n_estimators=2000,
-        max_depth=None,
-        min_samples_split=10,
-        min_samples_leaf=1,  # or 2
+        n_estimators=1000,
+        max_depth=30,
+        min_samples_split=15,
+        min_samples_leaf=3,  # or 2
         max_samples=0.85,
         max_features="log2",
         class_weight="balanced_subsample",
