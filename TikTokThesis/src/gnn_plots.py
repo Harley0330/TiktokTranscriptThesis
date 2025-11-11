@@ -3,7 +3,11 @@
 # ==============================================
 import pandas as pd
 import matplotlib.pyplot as plt
-from utils import RESULTS_DIR
+from utils import RESULTS_DIR, PLOTS_DIR
+
+GRAPHS_DIR = PLOTS_DIR / "gnn_plots"
+GRAPHS_DIR.mkdir(parents=True, exist_ok=True)
+
 # --- Load the saved training log ---
 df_logs = pd.read_csv(RESULTS_DIR/"training_log.csv")
 
@@ -27,7 +31,8 @@ plt.ylabel("Accuracy")
 plt.legend()
 plt.grid(True, linestyle='--', alpha=0.6)
 plt.tight_layout()
-plt.show()
+plt.savefig(GRAPHS_DIR / "train_test_acc.png", dpi=300)
+plt.close()
 
 # ==============================================
 # 🔹 Plot 2: Accuracy Gap
@@ -40,7 +45,8 @@ plt.xlabel("Epoch")
 plt.ylabel("Train - Test Accuracy")
 plt.grid(True, linestyle='--', alpha=0.6)
 plt.tight_layout()
-plt.show()
+plt.savefig(GRAPHS_DIR / "accuracy_gap.png", dpi=300)
+plt.close()
 
 # ==============================================
 # 🔹 Plot 3: Loss Curve
@@ -56,4 +62,7 @@ plt.ylabel("Cross-Entropy Loss")
 plt.legend()
 plt.grid(True, linestyle='--', alpha=0.6)
 plt.tight_layout()
-plt.show()
+plt.savefig(GRAPHS_DIR / "train_test_loss.png", dpi=300)
+plt.close()
+
+print("✅ Visualization complete. All comparison plots generated successfully.")

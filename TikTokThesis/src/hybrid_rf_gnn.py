@@ -173,9 +173,23 @@ def run_hybrid_rf(df,X, y, tokens_list, vectorizer, G, vocab_index, device, rand
     print("\n=== Step 6: Calibrated performance summary (with OOB) ===")
     print(f"Avg optimal α: {mean_a:.3f} | Avg threshold: {mean_t:.3f}")
     print(f"📊 Mean Train Acc:{mean_train_acc:.4f}  F1:{mean_train_f1:.4f}  "
-          f"| Test Acc:{mean_test_acc:.4f}  F1:{mean_test_f1:.4f}  | OOB:{mean_oob:.4f}")
+        f"| Test Acc:{mean_test_acc:.4f}  F1:{mean_test_f1:.4f}  | OOB:{mean_oob:.4f}")
 
-    # Save calibrated metrics and predictions
+    # --- Append summary row ---
+    summary_row = pd.DataFrame([{
+        "fold": "mean",
+        "best_alpha": mean_a,
+        "best_thresh": mean_t,
+        "train_acc": mean_train_acc,
+        "train_f1": mean_train_f1,
+        "test_acc": mean_test_acc,
+        "test_f1": mean_test_f1,
+        "oob": mean_oob
+    }])
+
+    metrics_df = pd.concat([metrics_df, summary_row], ignore_index=True)
+
+    # --- Save calibrated metrics and predictions ---
     metrics_df.to_csv(RESULTS_DIR / 'hybrid_fold_metrics_calibrated.csv', index=False)
     df["predicted_label_calibrated"] = y_pred_all
     df["predicted_label_calibrated"] = df["predicted_label_calibrated"].map({1: "fake", 0: "real"})
@@ -189,9 +203,8 @@ def run_hybrid_rf(df,X, y, tokens_list, vectorizer, G, vocab_index, device, rand
     df["predicted_label"] = df["predicted_label"].map({1: "fake", 0: "real"})
     df.to_csv(RESULTS_DIR / "hybrid_predictions_full.csv", index=False)
 
-    metrics_df = pd.DataFrame(fold_metrics)
+    # Also save the summary version of hybrid_fold_metrics.csv
     metrics_df.to_csv(RESULTS_DIR / "hybrid_fold_metrics.csv", index=False)
+
     print("\n📊 FINAL SUMMARY — Mean Train Acc:{:.4f} | Test Acc:{:.4f} | OOB:{:.4f}"
-          .format(metrics_df.train_acc.mean(),
-                  metrics_df.test_acc.mean(),
-                  metrics_df.oob.mean()))
+        .format(mean_train_acc, mean_test_acc, mean_oob))

@@ -27,11 +27,15 @@ Pipeline Overview
 
 3. Model Training
    - Graph Neural Network (PyTorch Geometric)
+      - Save Models in models directory
    - Random Forest classifier (scikit-learn)
    - Fusion of GNN probability scores with Random Forest features
 
 4. Evaluation
    - Metrics: Accuracy, Precision, Recall, F1-score
+   - Kolmogorov-Smirnov Test
+   - Paired T-test / Wilcoxson Signed Rank Test
+   - McNemar's Test
 
 How to Run
 ----------
@@ -56,19 +60,61 @@ Dependencies
 - torch-geometric
 - networkx
 
-Project Structure
 -----------------
-FakeNewsClassifier-GNN-RF/
-│
-├── data/                     # Dataset (raw and processed)
-├── src/                      # Source code
-│   ├── preprocessing.py
+## Project Structure
+TikTokThesis/
+├── data/
+│   ├── raw/
+│   │   └── data_cleaned.csv
+│   └── processed/
+│       └── data_cleaned_formatted.csv
+├── models/
+│   ├── gnn_fold1_best.pth
+│   ├── gnn_fold2_best.pth
+│   ├── gnn_fold3_best.pth
+│   ├── gnn_fold4_best.pth
+│   ├── gnn_fold5_best.pth
+│   ├── gnn_fold6_best.pth
+│   ├── gnn_fold7_best.pth
+│   ├── gnn_fold8_best.pth
+│   ├── gnn_fold9_best.pth
+│   ├── gnn_fold10_best.pth
+│   ├── gnn_fold11_best.pth
+│   ├── gnn_fold12_best.pth
+│   ├── gnn_fold13_best.pth
+│   ├── gnn_fold14_best.pth
+│   ├── gnn_fold15_best.pth
+│   ├── gnn_training_log.csv
+│   └── rf_final.pkl
+├── plots/
+│   ├── gnn_plots/                  
+│   ├── hybrid_model_plots/         
+│   └── hypothesis_testing_plots/   
+├── results/
+│   ├── baseline_fold_metrics.csv
+│   ├── baseline_predictions_full.csv
+│   ├── baseline_rf_metrics.csv
+│   ├── gnn_training_log.csv
+│   ├── hybrid_fold_metrics.csv
+│   ├── hybrid_fold_metrics_calibrated.csv
+│   ├── hybrid_predictions_full.csv
+│   └── hybrid_predictions_calibrated.csv
+├── src/
+│   ├── __init__.py
+│   ├── baseline_hybrid_comparison_plots.py
 │   ├── feature_extraction.py
 │   ├── gnn_model.py
+│   ├── gnn_plots.py
+│   ├── hybrid_rf_gnn.py
+│   ├── preprocessing.py
 │   ├── random_forest.py
+│   ├── statistical_tests.py
+│   ├── statistical_testing_plots.py
+│   ├── train_gnn.py
 │   ├── train.py
-│   ├── evaluate.py
 │   └── utils.py
-├── main.py                   # Pipeline entry point
-├── requirements.txt
-└── README.txt
+├── requirements.txt          # Dependencies (torch, torch-geometric, sklearn, nltk, etc.)
+├── config.yaml               # Hyperparameters (layers, batch size, RF params, etc.)
+├── main.py                   # Entry point: end-to-end pipeline
+└── README.md                 # Documentation
+---

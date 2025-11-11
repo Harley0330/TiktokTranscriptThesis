@@ -19,8 +19,11 @@ def run_tests():
 
     # Load metrics files
 
-    baseline_metrics = pd.read_csv(RESULTS_DIR/"baseline_fold_metrics.csv")
-    hybrid_metrics = pd.read_csv(RESULTS_DIR/"hybrid_fold_metrics.csv")
+    hybrid_metrics = pd.read_csv(RESULTS_DIR / "hybrid_fold_metrics.csv")
+    hybrid_metrics = hybrid_metrics[hybrid_metrics["fold"] != "mean"]
+
+    baseline_metrics = pd.read_csv(RESULTS_DIR / "baseline_rf_metrics.csv")
+    baseline_metrics = baseline_metrics[baseline_metrics["fold"] != "mean"]
 
     baseline_acc = baseline_metrics["test_acc"].values
     hybrid_acc = hybrid_metrics["test_acc"].values
@@ -35,7 +38,7 @@ def run_tests():
     print("\nPaired t-test for Normally Distributed Data")
     t_stat, t_p = ttest_rel(hybrid_acc,baseline_acc)
     test_used = "Paired t-test"
-    print(f"{test_used} -> t = {t_stat:.4f}, p = {t_p:.4f}")
+    print(f"{test_used} -> t = {t_stat:.4f}, p = {t_p:.10f}")
 
     print("\nMcNemar's Test (Prediction Agreement)")
 
@@ -68,7 +71,7 @@ def run_tests():
 
     from statsmodels.stats.contingency_tables import mcnemar
     result = mcnemar(table, exact=False, correction=True)  # chi-square approximation
-    print(f"McNemar’s χ² = {result.statistic:.4f}, p = {result.pvalue:.4f}")
+    print(f"McNemar’s χ² = {result.statistic:.4f}, p = {result.pvalue:.10f}")
 
 
      # ----------------------------

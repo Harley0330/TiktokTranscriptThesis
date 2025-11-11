@@ -113,49 +113,54 @@ def run_rf(csv_path, random_state=42):
 
     return rf
 
+
 def run_rf_baseline_cv(df, random_state=42, n_splits=15, max_features=5000):
     """
-    Final Random Forest model using best parameters (generalization-optimized).
-    Evaluates 15-fold Stratified CV, displays training/test metrics, and saves results.
+    Runs a Random Forest baseline using TF-IDF features only,
+    with 15-fold Stratified CV (to match the hybrid model setup).
+    Saves per-fold metrics and full predictions for statistical testing.
     """
 
     set_seed(random_state)
     X, y, vectorizer = prepare_data(df, RAW_DIR / "data_cleaned_formatted.csv", max_features=max_features)
     print(f"Loaded {len(y)} samples | TF-IDF shape: {X.shape}")
 
-    # --- Final tuned parameters (from least-gap search) ---
-    rf = RandomForestClassifier(
-        n_estimators=700,
-        max_depth=15,
-        min_samples_split=10,
-        min_samples_leaf=4,
-        max_features="log2",
-        class_weight="balanced_subsample",
-        random_state=random_state,
-        n_jobs=-1,
-        oob_score=True,
-        bootstrap=True,
-    )
-
-    # --- Cross-validation setup ---
     cv = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=random_state)
-    fold_metrics = []
+    fold_metrics, y_pred_all, y_proba_all = [], np.zeros_like(y), np.zeros_like(y, dtype=float)
 
-    print(f"\n=== Step 2: Training Final Tuned Random Forest ({n_splits}-fold CV) ===")
+    print(f"\n=== Step 2: Training Random Forest ({n_splits}-fold CV) ===")
 
     for fold, (train_idx, test_idx) in enumerate(cv.split(X, y), start=1):
         X_train, X_test = X[train_idx], X[test_idx]
         y_train, y_test = y[train_idx], y[test_idx]
 
+        # --- Model definition ---
+        rf = RandomForestClassifier(
+            n_estimators=700,
+            max_depth=15,
+            min_samples_split=10,
+            min_samples_leaf=4,
+            max_features="log2",
+            class_weight="balanced_subsample",
+            random_state=random_state,
+            n_jobs=-1,
+            bootstrap=True,
+            oob_score=True,
+        )
+
         rf.fit(X_train, y_train)
 
-        # Predictions
+        # --- Predictions ---
         y_train_pred = rf.predict(X_train)
         y_pred = rf.predict(X_test)
+        y_proba = rf.predict_proba(X_test)[:, 1]
 
-        # Metrics
+        y_pred_all[test_idx], y_proba_all[test_idx] = y_pred, y_proba
+
+        # --- Train/Test Metrics ---
         train_acc = accuracy_score(y_train, y_train_pred)
         test_acc = accuracy_score(y_test, y_pred)
+
         train_prec, train_rec, train_f1, _ = precision_recall_fscore_support(
             y_train, y_train_pred, average="binary", pos_label=1, zero_division=0
         )
@@ -166,49 +171,70 @@ def run_rf_baseline_cv(df, random_state=42, n_splits=15, max_features=5000):
         fold_metrics.append({
             "fold": fold,
             "train_acc": train_acc,
-            "test_acc": test_acc,
+            "train_prec": train_prec,
+            "train_rec": train_rec,
             "train_f1": train_f1,
+            "test_acc": test_acc,
+            "test_prec": test_prec,
+            "test_rec": test_rec,
             "test_f1": test_f1,
             "acc_gap": abs(train_acc - test_acc),
             "f1_gap": abs(train_f1 - test_f1),
+            "oob": rf.oob_score_,
         })
 
         print(f"\nFold {fold:02d}")
-        print(f"  🔹 Train — Acc:{train_acc:.4f} F1:{train_f1:.4f}")
-        print(f"  🔹 Test  — Acc:{test_acc:.4f} F1:{test_f1:.4f}")
+        print(f"  🔹 Train — Acc:{train_acc:.4f} Prec:{train_prec:.4f} Rec:{train_rec:.4f} F1:{train_f1:.4f}")
+        print(f"  🔹 Test  — Acc:{test_acc:.4f} Prec:{test_prec:.4f} Rec:{test_rec:.4f} F1:{test_f1:.4f}")
         print(f"  🔹 Gaps  — Acc Gap:{abs(train_acc - test_acc):.4f} | F1 Gap:{abs(train_f1 - test_f1):.4f}")
+        print(f"  🔹 OOB Score:{rf.oob_score_:.4f}")
 
-    # --- Summary ---
+    # === Aggregate Mean Metrics ===
     metrics_df = pd.DataFrame(fold_metrics)
     mean_train_acc, mean_test_acc = metrics_df["train_acc"].mean(), metrics_df["test_acc"].mean()
+    mean_train_prec, mean_test_prec = metrics_df["train_prec"].mean(), metrics_df["test_prec"].mean()
+    mean_train_rec, mean_test_rec = metrics_df["train_rec"].mean(), metrics_df["test_rec"].mean()
     mean_train_f1, mean_test_f1 = metrics_df["train_f1"].mean(), metrics_df["test_f1"].mean()
+    mean_oob = metrics_df["oob"].mean()
     mean_acc_gap = abs(mean_train_acc - mean_test_acc)
     mean_f1_gap = abs(mean_train_f1 - mean_test_f1)
 
     print(f"\n📊 Mean Train Accuracy: {mean_train_acc:.4f} | Test Accuracy: {mean_test_acc:.4f}")
     print(f"📊 Mean Train F1: {mean_train_f1:.4f} | Test F1: {mean_test_f1:.4f}")
     print(f"📉 Accuracy Gap: {mean_acc_gap*100:.2f}% | F1 Gap: {mean_f1_gap*100:.2f}%")
-    print(f"OOB Score (baseline model): {rf.oob_score_:.4f}")
+    print(f"📊 Mean OOB Score: {mean_oob:.4f}")
 
-    # --- Append summary row ---
+    # === Append Summary Row ===
     summary_row = pd.DataFrame([{
         "fold": "mean",
         "train_acc": mean_train_acc,
-        "test_acc": mean_test_acc,
+        "train_prec": mean_train_prec,
+        "train_rec": mean_train_rec,
         "train_f1": mean_train_f1,
+        "test_acc": mean_test_acc,
+        "test_prec": mean_test_prec,
+        "test_rec": mean_test_rec,
         "test_f1": mean_test_f1,
         "acc_gap": mean_acc_gap,
         "f1_gap": mean_f1_gap,
+        "oob": mean_oob,
     }])
-
     metrics_df = pd.concat([metrics_df, summary_row], ignore_index=True)
 
-    # --- Save results ---
-    save_path = RESULTS_DIR / "baseline_rf_metrics.csv"
-    metrics_df.to_csv(save_path, index=False)
-    print(f"\n💾 Saved per-fold + mean metrics to {save_path}")
+    # === Save Metrics and Predictions ===
+    metrics_path = RESULTS_DIR / "baseline_fold_metrics.csv"
+    metrics_df.to_csv(metrics_path, index=False)
+    print(f"\n💾 Saved per-fold + mean metrics to {metrics_path}")
+
+    df["predicted_label_baseline"] = y_pred_all
+    df["predicted_label_baseline"] = df["predicted_label_baseline"].map({1: "fake", 0: "real"})
+    df["predicted_proba_baseline"] = y_proba_all
+    df.to_csv(RESULTS_DIR / "baseline_predictions_full.csv", index=False)
+    print(f"💾 Saved full predictions to baseline_predictions_full.csv")
 
     return metrics_df
+
+
 
 
 
@@ -218,9 +244,9 @@ def run_rf_with_features(X_train, X_test, y_train, y_test, *, random_state=42):
     Method used for training the hybrid model
     """
     rf = RandomForestClassifier(
-        n_estimators=1000,
+        n_estimators=1500,
         max_depth=30,
-        min_samples_split=15,
+        min_samples_split=20,
         min_samples_leaf=3,  # or 2
         max_samples=0.85,
         max_features="log2",

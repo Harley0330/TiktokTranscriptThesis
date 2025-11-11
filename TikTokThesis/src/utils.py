@@ -19,16 +19,16 @@ def get_path(var_name: str, default: str):
     """Return path from env var, or default relative to repo root"""
     return Path(os.getenv(var_name, REPO_ROOT / default))
 
-RAW_DIR       = get_path("RAW_DIR", "data/data_cleaned.csv")
-
 #Directories
+RAW_DIR       = get_path("RAW_DIR", "data/raw")
 PROCESSED_DIR = get_path("PROCESSED_DIR", "data/processed")
 MODELS_DIR    = get_path("MODELS_DIR", "models")
 RESULTS_DIR   = get_path("RESULTS_DIR", "results")
 LOG_DIR       = get_path("LOG_DIR", "logs")
+PLOTS_DIR     = get_path("PLOTS_DIR", "plots")
 
 # Create dirs if they don’t exist
-for d in [PROCESSED_DIR, MODELS_DIR, RESULTS_DIR, LOG_DIR]:
+for d in [RAW_DIR,PROCESSED_DIR, MODELS_DIR, RESULTS_DIR, LOG_DIR, PLOTS_DIR]:
     d.mkdir(parents=True, exist_ok=True)
 
 # -------------------------------------------------------------------

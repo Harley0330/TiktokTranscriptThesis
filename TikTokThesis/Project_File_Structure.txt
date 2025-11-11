@@ -1,23 +1,59 @@
-FakeNewsClassifier-GNN-RF/
+TikTokThesis/
 │
 ├── data/
-│   ├── raw/                  # Original dataset (FakeTT transcripts)
-│   ├── processed/            # Preprocessed & tokenized data
+│   ├── raw/
+│   │   └── data_cleaned.csv
+│   └── processed/
+│       └── data_cleaned_formatted.csv
+│
+├── models/
+│   ├── gnn_fold1_best.pth
+│   ├── gnn_fold2_best.pth
+│   ├── gnn_fold3_best.pth
+│   ├── gnn_fold4_best.pth
+│   ├── gnn_fold5_best.pth
+│   ├── gnn_fold6_best.pth
+│   ├── gnn_fold7_best.pth
+│   ├── gnn_fold8_best.pth
+│   ├── gnn_fold9_best.pth
+│   ├── gnn_fold10_best.pth
+│   ├── gnn_fold11_best.pth
+│   ├── gnn_fold12_best.pth
+│   ├── gnn_fold13_best.pth
+│   ├── gnn_fold14_best.pth
+│   ├── gnn_fold15_best.pth
+│   ├── gnn_training_log.csv
+│   └── rf_final.pkl
+│
+├── plots/
+│   ├── gnn_plots/                  # GNN Model plots
+│   ├── hybrid_model_plots/         # Hybrid RF + GNN Model Plots
+│   └── hypothesis_testing_plots/   # Hypothesis and Assumption Testing Plots
+│
+├── results/
+│   ├── baseline_fold_metrics.csv
+│   ├── baseline_predictions_full.csv
+│   ├── baseline_rf_metrics.csv
+│   ├── gnn_training_log.csv
+│   ├── hybrid_fold_metrics.csv
+│   ├── hybrid_fold_metrics_calibrated.csv
+│   ├── hybrid_predictions_full.csv
+│   └── hybrid_predictions_calibrated.csv
 │
 ├── src/
 │   ├── __init__.py
-│   ├── preprocessing.py      # Text cleaning, tokenization, stopword removal
-│   ├── feature_extraction.py # TF-IDF, word occurrence graph
-│   ├── gnn_model.py          # Graph Neural Network (SAGEConv, forward pass)
-│   ├── random_forest.py      # Random Forest classifier
-│   ├── train.py              # Pipeline to train GNN + RF
-│   ├── evaluate.py           # Precision, recall, accuracy, F1
-│   ├── utils.py              # Configs, helpers, logging, saving models
-│
-├── notebooks/
-│   ├── EDA.ipynb             # Exploratory data analysis on FakeTT
-│   ├── preprocessing_demo.ipynb # Test text cleaning & tokenization
-│   ├── model_experiments.ipynb  # Try different GNN/RF setups
+│   ├── baseline_hybrid_comparison_plots.py
+│   ├── feature_extraction.py
+│   ├── gnn_model.py
+│   ├── gnn_plots.py
+│   ├── hybrid_rf_gnn.py
+│   ├── preprocessing.py
+│   ├── random_forest.py
+│   ├── statistical_tests.py
+│   ├── statistical_testing_plots.py
+│   ├── train_gnn.py
+│   ├── train.py
+│   └── utils.py
 │
 ├── requirements.txt          # Dependencies (torch, torch-geometric, sklearn, nltk, etc.)
 ├── config.yaml               # Hyperparameters (layers, batch size, RF params, etc.)

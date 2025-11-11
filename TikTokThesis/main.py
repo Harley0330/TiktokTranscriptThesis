@@ -46,7 +46,7 @@ if __name__ == "__main__":
     device = "cpu"
 
     # ----------------- Preprocess -----------------
-    dataset_path = RAW_DIR
+    dataset_path = RAW_DIR / "data_cleaned.csv"
     output_path = PROCESSED_DIR / "data_cleaned_formatted.csv"
 
     df = preprocess_dataset(dataset_path)
@@ -77,7 +77,7 @@ if __name__ == "__main__":
     num_docs = X_dense.shape[0]
 
     #Baseline (Random Forest only)
-    #run_rf_baseline_cv(df)
+    run_rf_baseline_cv(df)
 
     # Node features: TF-IDF values per word across all docs
     node_features = np.zeros((num_nodes, num_docs))  # [num_nodes, num_docs]
@@ -103,11 +103,11 @@ if __name__ == "__main__":
     #train_gnn_cv(X, y, tokens_list, vocab_index, x, edge_index, device=device, n_splits=15)
 
     # Hybrid RF-GNN Model
-    vocab_tfidf = set(vectorizer.get_feature_names_out())
-    G = G.subgraph([w for w in G.nodes() if w in vocab_tfidf]).copy()
-    vocab_index = {w: i for i, w in enumerate(G.nodes())}
-    x = torch.eye(len(G.nodes()), dtype=torch.float, device=device)
+    # vocab_tfidf = set(vectorizer.get_feature_names_out())
+    # G = G.subgraph([w for w in G.nodes() if w in vocab_tfidf]).copy()
+    # vocab_index = {w: i for i, w in enumerate(G.nodes())}
+    # x = torch.eye(len(G.nodes()), dtype=torch.float, device=device)
 
-    run_hybrid_rf(df, X, y, tokens_list, vectorizer, G, vocab_index, device, random_state=42)
+    # run_hybrid_rf(df, X, y, tokens_list, vectorizer, G, vocab_index, device, random_state=42)
 
     
