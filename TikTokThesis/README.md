@@ -60,8 +60,9 @@ Dependencies
 - torch-geometric
 - networkx
 
+Project Structure
 -----------------
-## Project Structure
+```bash
 TikTokThesis/
 ├── data/
 │   ├── raw/
@@ -117,4 +118,4 @@ TikTokThesis/
 ├── config.yaml               # Hyperparameters (layers, batch size, RF params, etc.)
 ├── main.py                   # Entry point: end-to-end pipeline
 └── README.md                 # Documentation
----
+```
