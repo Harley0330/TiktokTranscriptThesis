@@ -117,5 +117,7 @@ TikTokThesis/
 ├── requirements.txt          # Dependencies (torch, torch-geometric, sklearn, nltk, etc.)
 ├── config.yaml               # Hyperparameters (layers, batch size, RF params, etc.)
 ├── main.py                   # Entry point: end-to-end pipeline
+├── analyzer_app.py           # Entry point: Frontend
+├── DESKTOP_APP_SETUP.md      # Guide to setup the Frontend       
 └── README.md                 # Documentation
 ```
