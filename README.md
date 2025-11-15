@@ -60,8 +60,9 @@ Dependencies
 - torch-geometric
 - networkx
 
+Project Structure
 -----------------
-## Project Structure
+```bash
 TikTokThesis/
 ├── data/
 │   ├── raw/
@@ -119,4 +120,4 @@ TikTokThesis/
 ├── analyzer_app.py           # Entry point: Frontend
 ├── DESKTOP_APP_SETUP.md      # Guide to setup the Frontend       
 └── README.md                 # Documentation
----
+```
