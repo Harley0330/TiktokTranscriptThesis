@@ -12,7 +12,7 @@ from src.utils import RESULTS_DIR, MODELS_DIR
 from src.gnn_model import GNNClassifier, extract_gnn_probabilities
 from src.random_forest import run_rf_with_features
 from src.train import get_folds
-
+import joblib
 APPLY_SVD = False
 SVD_N_COMPONENTS = 500
 GNN_WEIGHT_ALPHA = 0.90
@@ -164,8 +164,12 @@ def run_hybrid_rf(df,X, y, tokens_list, vectorizer, G, vocab_index, device, rand
     metrics_df = pd.DataFrame(fold_metrics)
     mean_train_acc = metrics_df["train_acc"].mean()
     mean_train_f1 = metrics_df["train_f1"].mean()
+    mean_train_prec = metrics_df["train_prec"].mean()
+    mean_train_rec = metrics_df["train_rec"].mean(), 
     mean_test_acc = metrics_df["test_acc"].mean()
     mean_test_f1 = metrics_df["test_f1"].mean()
+    mean_test_prec = metrics_df["test_prec"].mean()
+    mean_test_rec = metrics_df["test_rec"].mean()
     mean_t = metrics_df["best_thresh"].mean()
     mean_a = metrics_df["best_alpha"].mean()
     mean_oob = metrics_df["oob"].mean()
@@ -181,8 +185,12 @@ def run_hybrid_rf(df,X, y, tokens_list, vectorizer, G, vocab_index, device, rand
         "best_alpha": mean_a,
         "best_thresh": mean_t,
         "train_acc": mean_train_acc,
+        "train_prec" : mean_train_prec,
+        "train_rec" : mean_train_rec,
         "train_f1": mean_train_f1,
         "test_acc": mean_test_acc,
+        "test_prec" : mean_test_prec,
+        "test_rec" : mean_test_rec,
         "test_f1": mean_test_f1,
         "oob": mean_oob
     }])
@@ -208,3 +216,22 @@ def run_hybrid_rf(df,X, y, tokens_list, vectorizer, G, vocab_index, device, rand
 
     print("\n📊 FINAL SUMMARY — Mean Train Acc:{:.4f} | Test Acc:{:.4f} | OOB:{:.4f}"
         .format(mean_train_acc, mean_test_acc, mean_oob))
+    
+    # Save hybrid RF model
+    joblib.dump(rf, MODELS_DIR / "rf_hybrid_gnn.pkl")
+
+    # Save graph structure
+    graph_data = {
+        "vocab_index": vocab_index,
+        "x_graph": x,  # torch tensor
+        "edge_index": edge_index
+    }
+    joblib.dump(graph_data, MODELS_DIR / "graph_structure.pkl")
+
+    # Save scalers (if you used scaling in hybrid)
+    scalers = {
+        "tfidf_scaler": MaxAbsScaler().fit(X),
+        "emb_scaler": StandardScaler().fit(gnn_block),
+        "gnn_scale_factor": GNN_WEIGHT_ALPHA
+    }
+    joblib.dump(scalers, MODELS_DIR / "hybrid_scalers.pkl")

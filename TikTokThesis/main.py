@@ -103,11 +103,11 @@ if __name__ == "__main__":
     #train_gnn_cv(X, y, tokens_list, vocab_index, x, edge_index, device=device, n_splits=15)
 
     # Hybrid RF-GNN Model
-    # vocab_tfidf = set(vectorizer.get_feature_names_out())
-    # G = G.subgraph([w for w in G.nodes() if w in vocab_tfidf]).copy()
-    # vocab_index = {w: i for i, w in enumerate(G.nodes())}
-    # x = torch.eye(len(G.nodes()), dtype=torch.float, device=device)
+    vocab_tfidf = set(vectorizer.get_feature_names_out())
+    G = G.subgraph([w for w in G.nodes() if w in vocab_tfidf]).copy()
+    vocab_index = {w: i for i, w in enumerate(G.nodes())}
+    x = torch.eye(len(G.nodes()), dtype=torch.float, device=device)
 
-    # run_hybrid_rf(df, X, y, tokens_list, vectorizer, G, vocab_index, device, random_state=42)
+    run_hybrid_rf(df, X, y, tokens_list, vectorizer, G, vocab_index, device, random_state=42)
 
     

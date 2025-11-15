@@ -27,9 +27,11 @@ baseline_metrics = pd.read_csv(RESULTS_DIR / "baseline_rf_metrics.csv")
 baseline_metrics = baseline_metrics[baseline_metrics["fold"] != "mean"]
 
 # === 1️⃣ Bar chart of mean performance ===
-metrics = ["Accuracy", "F1-score"]
-base_means = [baseline_metrics["test_acc"].mean(), baseline_metrics["test_f1"].mean()]
-hyb_means = [hybrid_metrics["test_acc"].mean(), hybrid_metrics["test_f1"].mean()]
+metrics = ["Accuracy", "Precision", "Recall", "F1-score"]
+base_means = [baseline_metrics["test_acc"].mean(), baseline_metrics["test_prec"].mean(), 
+              baseline_metrics["test_rec"].mean(), baseline_metrics["test_f1"].mean()]
+hyb_means = [hybrid_metrics["test_acc"].mean(), hybrid_metrics["test_prec"].mean(),
+             hybrid_metrics["test_rec"].mean(), hybrid_metrics["test_f1"].mean()]
 
 x = np.arange(len(metrics))
 width = 0.35
@@ -67,7 +69,7 @@ data = pd.DataFrame({
 plt.figure(figsize=(6,5))
 sns.boxplot(x="Model", y="Accuracy", data=data, palette="pastel")
 sns.swarmplot(x="Model", y="Accuracy", data=data, color=".25", alpha=0.6)
-plt.title("Distribution of Fold Accuracies")
+plt.title("Distribution of Fold Accuracies (RF+GNN)")
 plt.tight_layout()
 plt.savefig(GRAPHS_DIR / "box_plot_accuracy_dist.png", dpi=300)
 plt.close()
@@ -191,5 +193,19 @@ plt.suptitle("Baseline (RF) vs Hybrid (RF + GNN) Model Performance", fontsize=14
 plt.tight_layout(rect=[0, 0, 1, 0.96])
 plt.savefig(GRAPHS_DIR / "combined_model_comparison.png", dpi=300)
 plt.close()
+
+# === 2️⃣ Line plot of train and test accuracy for the Hybrid model ===
+plt.figure(figsize=(8,5))
+plt.plot(hybrid_metrics["fold"], hybrid_metrics["train_acc"], marker='o', label="Train Accuracy", color="#1f77b4")
+plt.plot(hybrid_metrics["fold"], hybrid_metrics["test_acc"], marker='x', label="Test Accuracy", color="#ff7f0e")
+plt.xlabel("Fold")
+plt.ylabel("Accuracy")
+plt.title("Train vs Test Accuracy (Hybrid Model: RF + GNN)")
+plt.legend()
+plt.grid(True, linestyle='--', alpha=0.6)
+plt.tight_layout()
+plt.savefig(GRAPHS_DIR / "train_vs_test_accuracy_hybrid.png", dpi=300)
+plt.close()
+
 
 print("✅ Visualization complete. All comparison plots generated successfully.")
