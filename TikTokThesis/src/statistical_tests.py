@@ -36,9 +36,19 @@ def run_tests():
 
     # Paired t-test
     print("\nPaired t-test for Normally Distributed Data")
-    t_stat, t_p = ttest_rel(hybrid_acc,baseline_acc)
+    t_stat, t_p_two = ttest_rel(hybrid_acc,baseline_acc)
     test_used = "Paired t-test"
-    print(f"{test_used} -> t = {t_stat:.4f}, p = {t_p:.10f}")
+    print(f"{test_used} -> t = {t_stat:.4f}, p = {t_p_two:.10f}")
+
+    print("\nOne-Tailed Paired t-test (Hybrid > Baseline)")
+
+    # Convert to one-tailed p-value
+    if t_stat > 0:
+        t_p_one = t_p_two / 2
+    else:
+        t_p_one = 1 - (t_p_two / 2)
+
+    print(f"t = {t_stat:.4f}, p(one-tailed) = {t_p_one:.10f}")
 
     print("\nMcNemar's Test (Prediction Agreement)")
 
@@ -69,7 +79,6 @@ def run_tests():
     table = [[0, n01],
             [n10, 0]]
 
-    from statsmodels.stats.contingency_tables import mcnemar
     result = mcnemar(table, exact=False, correction=True)  # chi-square approximation
     print(f"McNemar’s χ² = {result.statistic:.4f}, p = {result.pvalue:.10f}")
 
@@ -83,7 +92,8 @@ def run_tests():
         "Normality": normality,
         "Test_used": test_used,
         "T_stat": t_stat,
-        "T_p": t_p,
+        "T_p_two_tailed": t_p_two,
+        "T_p_one_tailed": t_p_one,
         "McNemar_stat": result.statistic,
         "McNemar_p": result.pvalue,
         "Baseline_mean_acc": np.mean(baseline_acc),

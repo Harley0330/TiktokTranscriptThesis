@@ -42,7 +42,7 @@ plt.figure(figsize=(10,4))
 plt.subplot(1,2,1)
 sns.histplot(diff, kde=True, color="skyblue", bins=10)
 x = np.linspace(min(diff), max(diff), 100)
-plt.title("Histogram of Accuracy Differences (Hybrid - Baseline)")
+plt.title("Histogram of Accuracy Differences (Proposed - Baseline)")
 plt.xlabel("Accuracy Difference")
 
 plt.subplot(1,2,2)
@@ -56,27 +56,49 @@ plt.close()
 
 plt.figure(figsize=(8,5))
 plt.plot(baseline_metrics["fold"], baseline_metrics["test_acc"], marker='o', label="Baseline (RF)")
-plt.plot(hybrid_metrics["fold"], hybrid_metrics["test_acc"], marker='o', label="Hybrid (RF + GNN)")
+plt.plot(hybrid_metrics["fold"], hybrid_metrics["test_acc"], marker='o', label="Proposed (RF + GNN)")
 plt.xlabel("Fold")
 plt.ylabel("Test Accuracy")
 plt.title("Fold-wise Accuracy Comparison (Paired t-test)")
 plt.legend()
 plt.grid(True, linestyle='--', alpha=0.6)
 plt.tight_layout()
-plt.savefig(GRAPHS_DIR / "t_test_paired_line.png", dpi=300)
+plt.savefig(GRAPHS_DIR / "two_tailed_t_test_paired_line.png", dpi=300)
 plt.close()
 
-# # Boxplot of accuracy differences
-# plt.figure(figsize=(5,5))
-# sns.boxplot(y=diff, color="lightgreen")
-# plt.axhline(0, color='red', linestyle='--', label="No Difference")
-# plt.title("Distribution of Accuracy Differences (Hybrid - Baseline)")
-# plt.ylabel("Accuracy Difference")
-# plt.legend()
-# plt.tight_layout()
-# plt.show()
 
-# print("✅ Displayed paired accuracy comparisons and difference distribution.")
+# Compute differences
+diff = hybrid["test_acc"].values - baseline["test_acc"].values
+
+# Two-tailed test
+t_stat, p_two = stats.ttest_rel(hybrid["test_acc"], baseline["test_acc"])
+
+# Convert to one-tailed
+if t_stat > 0:
+    p_one = p_two / 2
+else:
+    p_one = 1 - (p_two / 2)
+
+# === One-tailed visualization ===
+plt.figure(figsize=(7,5))
+
+# Scatter of per-fold differences
+plt.scatter(range(1, len(diff)+1), diff, color="purple")
+plt.axhline(0, color='gray', linestyle='--', linewidth=1)
+
+# Mean diff line
+plt.axhline(diff.mean(), color='red', linestyle='-', label=f"Mean Diff = {diff.mean():.4f}")
+
+plt.title(f"One-Tailed Paired t-Test (Proposed > Baseline)\n"
+          f"t = {t_stat:.4f},  p(one-tailed) = {p_one:.6f}")
+plt.xlabel("Fold")
+plt.ylabel("Accuracy Difference (Proposed - Baseline)")
+plt.legend()
+plt.grid(True, linestyle='--', alpha=0.5)
+
+plt.tight_layout()
+plt.savefig(GRAPHS_DIR / "one_tailed_ttest_plot.png", dpi=300)
+plt.close()
 
 # === 3️⃣ McNemar’s Test Visualization ===
 
@@ -91,7 +113,7 @@ n01 = ((correct_baseline == 1) & (correct_hybrid == 0)).sum()
 n10 = ((correct_baseline == 0) & (correct_hybrid == 1)).sum()
 
 plt.figure(figsize=(6,5))
-sns.barplot(x=["Baseline Correct / Hybrid Wrong", "Baseline Wrong / Hybrid Correct"], y=[n01, n10], palette="pastel")
+sns.barplot(x=["Baseline Correct / Proposed Wrong", "Baseline Wrong / Proposed Correct"], y=[n01, n10], palette="pastel")
 plt.title("McNemar’s Test Discordant Cases")
 plt.ylabel("Count of Instances")
 plt.tight_layout()

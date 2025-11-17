@@ -4,7 +4,8 @@ KS_pvalue: 0.07546400948132746
 Normality: Normal
 Test_used: Paired t-test
 T_stat: 6.324462651064933
-T_p: 1.8767977423815935e-05
+T_p_two_tailed: 1.8767977423815935e-05
+T_p_one_tailed: 9.383988711907967e-06
 McNemar_stat: 27.76865671641791
 McNemar_p: 1.3672330948642935e-07
 Baseline_mean_acc: 0.750319881889764
